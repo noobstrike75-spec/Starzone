@@ -195,5 +195,4 @@ export default async function HomePage({ searchParams }) {
       </nav>
     </div>
   );
-            }
-          
+}
