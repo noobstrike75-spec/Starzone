@@ -1,15 +1,13 @@
 import Link from "next/link";
 
 const LEAGUES = [
-  { id: 39, name: "Premier League", country: "England" },
-  { id: 140, name: "La Liga", country: "Spain" },
-  { id: 78, name: "Bundesliga", country: "Germany" },
-  { id: 135, name: "Serie A", country: "Italy" },
-  { id: 61, name: "Ligue 1", country: "France" },
-  { id: 2, name: "Champions League", country: "Europe" },
+  { code: "PL", name: "Premier League", country: "England" },
+  { code: "PD", name: "La Liga", country: "Spain" },
+  { code: "BL1", name: "Bundesliga", country: "Germany" },
+  { code: "SA", name: "Serie A", country: "Italy" },
+  { code: "FL1", name: "Ligue 1", country: "France" },
+  { code: "CL", name: "Champions League", country: "Europe" },
 ];
-
-const SEASON = 2026; // adjust as needed for the active season
 
 export default function LeaguesPage() {
   return (
@@ -23,13 +21,9 @@ export default function LeaguesPage() {
         <div style={{ background: "#fff", borderRadius: "10px", overflow: "hidden" }}>
           {LEAGUES.map((l) => (
             <Link
-              key={l.id}
-              href={`/standings/${l.id}/${SEASON}`}
-              style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "0.9rem 1rem", borderBottom: "1px solid #eee",
-                color: "#111", textDecoration: "none",
-              }}
+              key={l.code}
+              href={`/standings/${l.code}`}
+              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.9rem 1rem", borderBottom: "1px solid #eee", color: "#111", textDecoration: "none" }}
             >
               <span style={{ fontWeight: 600 }}>{l.name}</span>
               <span style={{ color: "#888", fontSize: "0.8rem" }}>{l.country} →</span>
