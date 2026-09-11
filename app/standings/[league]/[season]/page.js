@@ -1,57 +1,41 @@
 import Link from "next/link";
-import { getStandings } from "../../../../lib/api-football";
 
-export default async function StandingsPage({ params }) {
-  const { league, season } = params;
+const LEAGUES = [
+  { id: 39, name: "Premier League", country: "England" },
+  { id: 140, name: "La Liga", country: "Spain" },
+  { id: 78, name: "Bundesliga", country: "Germany" },
+  { id: 135, name: "Serie A", country: "Italy" },
+  { id: 61, name: "Ligue 1", country: "France" },
+  { id: 2, name: "Champions League", country: "Europe" },
+];
 
-  let table = [];
-  let leagueName = "";
-  let error = null;
+const SEASON = 2023; // free-tier plans often only cover 2021-2023 data
 
-  try {
-    const data = await getStandings(league, season);
-    leagueName = data[0]?.league?.name ?? "League";
-    table = data[0]?.league?.standings?.[0] ?? [];
-  } catch (e) {
-    error = e.message;
-  }
-
+export default function LeaguesPage() {
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", background: "#f4f4f4", minHeight: "100vh", paddingBottom: "3rem" }}>
       <header style={{ background: "#111", padding: "0.9rem 1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
-        <Link href="/leagues" style={{ color: "#fff", fontSize: "1.3rem", textDecoration: "none" }}>←</Link>
-        <span style={{ color: "#fff", fontSize: "1.05rem", fontWeight: 700 }}>{leagueName || "Standings"}</span>
+        <Link href="/" style={{ color: "#fff", fontSize: "1.3rem", textDecoration: "none" }}>←</Link>
+        <span style={{ color: "#fff", fontSize: "1.05rem", fontWeight: 700 }}>Leagues</span>
       </header>
 
       <main style={{ maxWidth: 700, margin: "0 auto", padding: "1rem" }}>
-        {error && <p style={{ color: "crimson" }}>Couldn't load standings. ({error})</p>}
-
-        {table.length > 0 && (
-          <div style={{ background: "#fff", borderRadius: "10px", overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "0.4fr 2fr 0.6fr 0.6fr 0.6fr", padding: "0.5rem 0.75rem", fontSize: "0.7rem", fontWeight: 700, color: "#555", borderBottom: "2px solid #ddd" }}>
-              <span>#</span>
-              <span>Team</span>
-              <span style={{ textAlign: "center" }}>P</span>
-              <span style={{ textAlign: "center" }}>GD</span>
-              <span style={{ textAlign: "center" }}>Pts</span>
-            </div>
-            {table.map((row) => (
-              <div
-                key={row.team.id}
-                style={{ display: "grid", gridTemplateColumns: "0.4fr 2fr 0.6fr 0.6fr 0.6fr", padding: "0.5rem 0.75rem", fontSize: "0.8rem", borderBottom: "1px solid #eee", alignItems: "center" }}
-              >
-                <span>{row.rank}</span>
-                <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  {row.team.logo && <img src={row.team.logo} alt="" style={{ width: 16, height: 16 }} />}
-                  {row.team.name}
-                </span>
-                <span style={{ textAlign: "center" }}>{row.all.played}</span>
-                <span style={{ textAlign: "center" }}>{row.goalsDiff}</span>
-                <span style={{ textAlign: "center", fontWeight: 700 }}>{row.points}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <div style={{ background: "#fff", borderRadius: "10px", overflow: "hidden" }}>
+          {LEAGUES.map((l) => (
+            <Link
+              key={l.id}
+              href={`/standings/${l.id}/${SEASON}`}
+              style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "0.9rem 1rem", borderBottom: "1px solid #eee",
+                color: "#111", textDecoration: "none",
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>{l.name}</span>
+              <span style={{ color: "#888", fontSize: "0.8rem" }}>{l.country} →</span>
+            </Link>
+          ))}
+        </div>
       </main>
     </div>
   );
