@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMatchDetail, getCompetitionMatches } from "../../../lib/football-data";
+import { getMatchDetail, getFinishedMatchesByDateRange } from "../../../lib/football-data";
 import { predictMatch } from "../../../lib/predictions";
 
 function addDays(date, amount) {
@@ -27,8 +27,9 @@ export default async function MatchPage({ params }) {
     try {
       const code = detail.competition?.code;
       if (code) {
-        const history = await getCompetitionMatches(code, addDays(detail.utcDate, -365), addDays(detail.utcDate, -1));
-        pred = predictMatch({ homeTeam: detail.homeTeam, awayTeam: detail.awayTeam, historicalMatches: history.filter((m) => new Date(m.utcDate) < new Date(detail.utcDate)) });
+        const history = await getFinishedMatchesByDateRange(addDays(detail.utcDate, -365), addDays(detail.utcDate, -1), 500);
+        const competitionHistory = history.filter((m) => m.competition?.code === code && new Date(m.utcDate) < new Date(detail.utcDate));
+        pred = predictMatch({ homeTeam: detail.homeTeam, awayTeam: detail.awayTeam, historicalMatches: competitionHistory });
       }
     } catch (e) {
       error = error || e.message;
