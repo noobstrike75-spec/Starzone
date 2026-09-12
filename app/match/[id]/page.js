@@ -1,63 +1,76 @@
 import Link from "next/link";
-import { getTeamInfo, getTeamRecentMatches } from "../../../lib/football-data";
+import { getMatchDetail, getCompetitionMatches } from "../../../lib/football-data";
+import { predictMatch } from "../../../lib/predictions";
 
-export default async function TeamPage({ params }) {
-  const teamId = params.id;
+function addDays(date, amount) {
+  const d = new Date(date);
+  d.setUTCDate(d.getUTCDate() + amount);
+  return d.toISOString().slice(0, 10);
+}
 
-  let info = null;
-  let recent = [];
+export default async function MatchPage({ params }) {
+  const matchId = params.id;
+  let detail = null;
   let error = null;
 
   try {
-    info = await getTeamInfo(teamId);
-    recent = await getTeamRecentMatches(teamId, 5);
+    detail = await getMatchDetail(matchId);
   } catch (e) {
     error = e.message;
+  }
+
+  let pred = null;
+  let h2h = null;
+
+  if (detail) {
+    h2h = detail.head2head;
+    try {
+      const code = detail.competition?.code;
+      if (code) {
+        const history = await getCompetitionMatches(code, addDays(detail.utcDate, -365), addDays(detail.utcDate, -1));
+        pred = predictMatch({ homeTeam: detail.homeTeam, awayTeam: detail.awayTeam, historicalMatches: history.filter((m) => new Date(m.utcDate) < new Date(detail.utcDate)) });
+      }
+    } catch (e) {
+      error = error || e.message;
+    }
   }
 
   return (
     <div style={{ fontFamily: "system-ui, sans-serif", background: "#f4f4f4", minHeight: "100vh", paddingBottom: "3rem" }}>
       <header style={{ background: "#111", padding: "0.9rem 1rem", display: "flex", alignItems: "center", gap: "1rem" }}>
         <Link href="/" style={{ color: "#fff", fontSize: "1.3rem", textDecoration: "none" }}>←</Link>
-        <span style={{ color: "#fff", fontSize: "1.1rem", fontWeight: 700 }}>Team Stats</span>
+        <span style={{ color: "#fff", fontSize: "1.05rem", fontWeight: 700 }}>{detail ? `${detail.homeTeam.name} vs ${detail.awayTeam.name}` : "Match Preview"}</span>
       </header>
 
-      {error && <p style={{ color: "crimson", padding: "1rem" }}>Couldn't load team data. ({error})</p>}
+      <main style={{ maxWidth: 700, margin: "0 auto", padding: "1rem" }}>
+        {error && <p style={{ color: "crimson" }}>Some prediction data could not be loaded. ({error})</p>}
 
-      {info && (
-        <main style={{ maxWidth: 700, margin: "0 auto", padding: "1rem" }}>
-          <div style={{ background: "#fff", borderRadius: "10px", padding: "1.2rem", display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
-            {info.crest && <img src={info.crest} alt={info.name} style={{ width: 56, height: 56 }} />}
-            <div>
-              <h1 style={{ margin: 0, fontSize: "1.3rem", color: "#111" }}>{info.name}</h1>
-              <p style={{ margin: "0.2rem 0 0", color: "#666", fontSize: "0.85rem" }}>
-                {info.area?.name} · Founded {info.founded ?? "—"}
-              </p>
-              {info.venue && (
-                <p style={{ margin: "0.2rem 0 0", color: "#666", fontSize: "0.8rem" }}>🏟️ {info.venue}</p>
-              )}
-              {info.coach?.name && (
-                <p style={{ margin: "0.2rem 0 0", color: "#666", fontSize: "0.8rem" }}>👔 Coach: {info.coach.name}</p>
-              )}
+        {pred && (
+          <>
+            <div style={{ background: "#fff", borderRadius: "10px", padding: "1.2rem", marginBottom: "1rem" }}>
+              <h2 style={{ fontSize: "1rem", margin: "0 0 0.9rem", color: "#111" }}>Mathematical Prediction</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", textAlign: "center", marginBottom: "1rem" }}>
+                <div><div style={{ fontSize: "1.3rem", fontWeight: 700 }}>{pred.homeWinProbability}%</div><div style={{ fontSize: "0.7rem", color: "#888" }}>{detail.homeTeam.name} Win</div></div>
+                <div><div style={{ fontSize: "1.3rem", fontWeight: 700 }}>{pred.drawProbability}%</div><div style={{ fontSize: "0.7rem", color: "#888" }}>Draw</div></div>
+                <div><div style={{ fontSize: "1.3rem", fontWeight: 700 }}>{pred.awayWinProbability}%</div><div style={{ fontSize: "0.7rem", color: "#888" }}>{detail.awayTeam.name} Win</div></div>
+              </div>
+              <p style={{ fontSize: "0.85rem", margin: "0 0 0.35rem" }}><strong>Prediction:</strong> {pred.pick}</p>
+              <p style={{ fontSize: "0.85rem", margin: "0 0 0.35rem" }}><strong>Most likely score:</strong> {pred.mostLikelyScore}</p>
+              <p style={{ fontSize: "0.85rem", margin: "0 0 0.35rem" }}><strong>Expected goals:</strong> {pred.homeExpectedGoals} - {pred.awayExpectedGoals}</p>
+              <p style={{ fontSize: "0.85rem", margin: "0 0 0.35rem" }}><strong>Over 2.5:</strong> {pred.over25}% · <strong>BTTS:</strong> {pred.bttsYes}%</p>
+              <p style={{ fontSize: "0.85rem", margin: 0 }}><strong>Confidence:</strong> {pred.confidence}% · <strong>Data:</strong> {pred.dataMatchesHome} home / {pred.dataMatchesAway} away matches</p>
             </div>
+          </>
+        )}
+
+        {h2h && (
+          <div style={{ background: "#fff", borderRadius: "10px", padding: "1.2rem" }}>
+            <h2 style={{ fontSize: "1rem", margin: "0 0 0.75rem", color: "#111" }}>Head-to-Head</h2>
+            <p style={{ fontSize: "0.85rem", margin: "0 0 0.4rem" }}>Last {h2h.numberOfMatches ?? 0} meetings — {h2h.homeTeam?.wins ?? 0} wins for {detail.homeTeam.name}, {h2h.awayTeam?.wins ?? 0} wins for {detail.awayTeam.name}, {h2h.homeTeam?.draws ?? 0} draws.</p>
+            <p style={{ fontSize: "0.85rem", margin: 0 }}>Total goals: {h2h.totalGoals ?? "—"}</p>
           </div>
-
-          {recent.length > 0 && (
-            <div style={{ background: "#fff", borderRadius: "10px", padding: "1.2rem" }}>
-              <h2 style={{ fontSize: "1rem", margin: "0 0 0.75rem", color: "#111" }}>Last 5 Matches</h2>
-              {recent.map((m) => (
-                <div key={m.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 0", borderBottom: "1px solid #eee", fontSize: "0.85rem" }}>
-                  <span>{m.homeTeam.name} vs {m.awayTeam.name}</span>
-                  <span style={{ fontWeight: 600 }}>{m.score.fullTime.home ?? "-"} : {m.score.fullTime.away ?? "-"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {recent.length === 0 && !error && (
-            <p style={{ color: "#888", fontSize: "0.85rem" }}>No recent finished matches found for this team.</p>
-          )}
-        </main>
-      )}
+        )}
+      </main>
     </div>
   );
 }
