@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMatchesByDate, getCompetitionMatches } from "../lib/football-data";
+import { getMatchesByDateRange, getFinishedMatchesByDateRange } from "../lib/football-data";
 import { buildPredictions } from "../lib/predictions";
 
 function toDateStr(d) {
@@ -30,59 +30,46 @@ export default async function HomePage({ searchParams }) {
   let matches = [];
   let error = null;
 
+  // v3: use one request for the selected day + the next six days instead of
+  // seven separate requests. This keeps the homepage friendly to the
+  // football-data.org request limit.
   try {
-    matches = await getMatchesByDate(selectedDateStr);
+    const upcomingTo = addDays(selectedDateStr, 6);
+    matches = await getMatchesByDateRange(selectedDateStr, upcomingTo);
   } catch (e) {
     error = e.message;
   }
 
-  // Only predict scheduled matches. If the selected day has fewer than 20
-  // fixtures, extend forward so StarZone can still present up to 20 predictions.
-  let predictionMatches = matches.filter((m) =>
-    ["SCHEDULED", "TIMED"].includes(m.status)
-  );
+  // Only predict scheduled/timed matches and keep the first 20.
+  const predictionMatches = matches
+    .filter((m) => ["SCHEDULED", "TIMED"].includes(m.status))
+    .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
+    .slice(0, 20);
 
-  if (!error && predictionMatches.length < 20) {
-    const extraDates = await Promise.all(
-      Array.from({ length: 6 }, (_, i) => getMatchesByDate(addDays(selectedDateStr, i + 1)))
-    );
-    const seen = new Set(predictionMatches.map((m) => m.id));
-    for (const dayMatches of extraDates.flat()) {
-      for (const m of dayMatches) {
-        if (seen.has(m.id)) continue;
-        if (!["SCHEDULED", "TIMED"].includes(m.status)) continue;
-        seen.add(m.id);
-        predictionMatches.push(m);
-        if (predictionMatches.length >= 20) break;
-      }
-      if (predictionMatches.length >= 20) break;
-    }
-  }
-
-  const upcoming = predictionMatches.slice(0, 20);
-
-  // Build one history pool per competition rather than one API request per team.
-  // This is much friendlier to football-data.org's request limits.
-  const competitionCodes = [...new Set(upcoming.map((m) => m.competition?.code).filter(Boolean))];
-  const historyFrom = addDays(selectedDateStr, -365);
-  const historyTo = addDays(selectedDateStr, -1);
+  // v3: fetch one shared historical pool instead of one request per
+  // competition. The pool is grouped locally below before prediction.
   const historyByCompetition = new Map();
+  if (!error && predictionMatches.length) {
+    try {
+      const historyFrom = addDays(selectedDateStr, -365);
+      const historyTo = addDays(selectedDateStr, -1);
+      const history = await getFinishedMatchesByDateRange(historyFrom, historyTo, 500);
 
-  if (!error && competitionCodes.length) {
-    const results = await Promise.allSettled(
-      competitionCodes.map(async (code) => [
-        code,
-        await getCompetitionMatches(code, historyFrom, historyTo),
-      ])
-    );
-    for (const result of results) {
-      if (result.status === "fulfilled") {
-        historyByCompetition.set(result.value[0], result.value[1]);
+      for (const match of history) {
+        const code = match.competition?.code;
+        if (!code) continue;
+        if (!historyByCompetition.has(code)) historyByCompetition.set(code, []);
+        historyByCompetition.get(code).push(match);
       }
+    } catch (e) {
+      // Do not turn a history-data failure into a 500 homepage. The model
+      // can safely fall back to league-average priors when history is absent.
+      console.error("StarZone history data warning:", e);
     }
   }
 
-  const predictions = !error ? buildPredictions(upcoming, historyByCompetition) : [];
+  const predictions = !error ? buildPredictions(predictionMatches, historyByCompetition) : [];
+  const displayMatches = predictionMatches;
   const predictionMap = new Map(predictions.map((p) => [p.match.id, p.prediction]));
 
   return (
@@ -112,9 +99,9 @@ export default async function HomePage({ searchParams }) {
         </div>
 
         {error && <p style={{ color: "crimson", padding: "0 1rem" }}>Couldn't load matches. Check your FOOTBALL_DATA_KEY in Vercel. ({error})</p>}
-        {!error && matches.length === 0 && <p style={{ textAlign: "center", color: "#666" }}>No matches found for this date in the covered competitions.</p>}
+        {!error && displayMatches.length === 0 && <p style={{ textAlign: "center", color: "#666" }}>No matches found for this date in the covered competitions.</p>}
 
-        {!error && matches.length > 0 && (
+        {!error && displayMatches.length > 0 && (
           <>
             <div style={{ padding: "0.4rem 0.75rem", fontSize: "0.7rem", color: "#666" }}>
               {predictions.length} match prediction{predictions.length === 1 ? "" : "s"} generated from match-specific historical data.
@@ -125,7 +112,7 @@ export default async function HomePage({ searchParams }) {
           </>
         )}
 
-        {matches.map((m) => {
+        {displayMatches.map((m) => {
           const pred = predictionMap.get(m.id);
           const finished = m.status === "FINISHED";
           const homeGoals = m.score?.fullTime?.home;
