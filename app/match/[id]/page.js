@@ -27,7 +27,7 @@ export default async function MatchPage({ params }) {
     try {
       const code = detail.competition?.code;
       if (code) {
-        const history = await getFinishedMatchesByDateRange(addDays(detail.utcDate, -365), addDays(detail.utcDate, -1), 500);
+        const history = await getFinishedMatchesByDateRange(addDays(detail.utcDate, -60), addDays(detail.utcDate, -1), 500);
         const competitionHistory = history.filter((m) => m.competition?.code === code && new Date(m.utcDate) < new Date(detail.utcDate));
         pred = predictMatch({ homeTeam: detail.homeTeam, awayTeam: detail.awayTeam, historicalMatches: competitionHistory });
       }
