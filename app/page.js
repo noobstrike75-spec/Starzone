@@ -46,12 +46,12 @@ export default async function HomePage({ searchParams }) {
     .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
     .slice(0, 20);
 
-  // v3: fetch one shared historical pool instead of one request per
-  // competition. The pool is grouped locally below before prediction.
+  // v4: use a recent 60-day historical pool. The API limits match date ranges
+  // to 10 days, so the data wrapper safely chunks this into sequential requests.
   const historyByCompetition = new Map();
   if (!error && predictionMatches.length) {
     try {
-      const historyFrom = addDays(selectedDateStr, -365);
+      const historyFrom = addDays(selectedDateStr, -60);
       const historyTo = addDays(selectedDateStr, -1);
       const history = await getFinishedMatchesByDateRange(historyFrom, historyTo, 500);
 
