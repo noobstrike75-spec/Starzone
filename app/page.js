@@ -30,6 +30,7 @@ export default async function HomePage({ searchParams }) {
   let matches = [];
   let error = null;
 
+  // v5: keep one upcoming range request; prediction intelligence is handled by lib/predictions.js.
   // v3: use one request for the selected day + the next six days instead of
   // seven separate requests. This keeps the homepage friendly to the
   // football-data.org request limit.
@@ -147,6 +148,8 @@ export default async function HomePage({ searchParams }) {
           );
         })}
       </main>
+
+      <p style={{ textAlign: "center", color: "#888", fontSize: "0.68rem", margin: "0 0 4.5rem", padding: "0 1rem" }}>Data provided by football-data.org</p>
 
       <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "#fff", borderTop: "1px solid #ddd", display: "flex", justifyContent: "space-around", padding: "0.5rem 0" }}>
         {[{ label: "Home", icon: "🏠", href: "/" }, { label: "Predictions", icon: "📊", href: "/" }, { label: "Leagues", icon: "🛡️", href: "/leagues" }, { label: "Favs", icon: "⭐", href: "/" }, { label: "More", icon: "☰", href: "/" }].map((item) => (
