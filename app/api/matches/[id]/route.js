@@ -2,9 +2,9 @@ import { getMatchDetail } from "../../../../../lib/football-data";
 
 export async function GET(request, { params }) {
   try {
-    const matchId = params.id;
+    const { id } = await params;
 
-    if (!matchId) {
+    if (!id) {
       return Response.json(
         {
           success: false,
@@ -16,12 +16,12 @@ export async function GET(request, { params }) {
       );
     }
 
-    const match = await getMatchDetail(matchId);
+    const match = await getMatchDetail(id);
 
     return Response.json({
       success: true,
       service: "StarZone API",
-      endpoint: `/api/matches/${matchId}`,
+      endpoint: `/api/matches/${id}`,
       match,
     });
   } catch (error) {
