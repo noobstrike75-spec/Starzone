@@ -1,4 +1,4 @@
-import { getMatchDetail } from "../../../../../lib/football-data";
+import { getMatchDetail } from "../../../../lib/football-data";
 
 export async function GET(request, { params }) {
   try {
