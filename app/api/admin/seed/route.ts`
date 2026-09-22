@@ -1,0 +1,26 @@
+import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+
+export async function GET() {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // 1. Enable public read
+  await supabase.rpc('exec_sql', { sql: `
+    ALTER TABLE public.matches ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "public read" ON public.matches;
+    CREATE POLICY "public read" ON public.matches FOR SELECT USING (true);
+  `}).catch(()=>{})
+
+  // 2. Insert test data
+  const { error } = await supabase.from('matches').upsert([
+    { id: 2224, external_id: '2224', competition_id: 1, home_team_id: 1, away_team_id: 2, status: 'FINISHED', home_score: 2, away_score: 1, utc_date: new Date().toISOString() },
+    { id: 2225, external_id: '2225', competition_id: 1, home_team_id: 3, away_team_id: 4, status: 'SCHEDULED', home_score: 0, away_score: 0, utc_date: new Date(Date.now()+86400000).toISOString() },
+  ])
+
+  if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  
+  return NextResponse.json({ success: true, message: "Matches seeded! Now /api/matches/2224 will work from Supabase" })
+}
